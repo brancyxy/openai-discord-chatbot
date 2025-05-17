@@ -57,3 +57,6 @@ env/
 
 # Local settings
 *.local
+
+# Output log files
+logs/

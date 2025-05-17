@@ -1,6 +1,7 @@
+import logging
 import nextcord
 
-from .integration.openai_client import OpenAIClient
+from cogs.integration.openai_client import OpenAIClient
 from datetime import datetime, timedelta, timezone
 from nextcord.ext import commands
 from utils import helpers
@@ -17,7 +18,8 @@ class ChatCommandCog(commands.Cog):
 
     @nextcord.slash_command(name="chat", description="Force a reply")
     async def chat(self, interaction: nextcord.Interaction):
-        await interaction.response.send_message(await self._call_ai_backend_with_history(interaction.channel))
+        await interaction.response.defer()
+        await interaction.followup.send(await self._call_ai_backend_with_history(interaction.channel))
 
     @commands.Cog.listener()
     async def on_message(self, message):
@@ -42,7 +44,9 @@ class ChatCommandCog(commands.Cog):
                     after=datetime.now(timezone.utc) - timedelta(hours=self.history_age))
             ]
         ]))
-        return self.openai_client.call_client(messages)
+        message = self.openai_client.call_client(messages)
+        logging.info(message)
+        return message
 
     async def _define_content(self, message):
         # TODO: Somehow retrieve the usernames from the mentions and replace them in the content. AI assumes it's a deleted message or a different person lol.
