@@ -1,13 +1,21 @@
 import logging
 import nextcord
+import re
 
 from cogs.integration.openai_client import OpenAIClient
 from datetime import datetime, timedelta, timezone
 from nextcord.ext import commands
 from utils import helpers
 
-
 class ChatCommandCog(commands.Cog):
+    """
+    Detects mention substrings such as @<123456789>
+        Users: <@123> or <@!123>
+        Roles: <@&123>
+        Channels: <#123>
+    """
+    MENTION_REGEX = re.compile(r"<(@!?|@&|#)(\d+)>")
+
     def __init__(self, bot):
         config = helpers.load_config()
         self.message_limit = int(config['bot']['message_limit'])
@@ -49,12 +57,12 @@ class ChatCommandCog(commands.Cog):
         return message
 
     async def _define_content(self, message):
-        # TODO: Somehow retrieve the usernames from the mentions and replace them in the content. AI assumes it's a deleted message or a different person lol.
         attachments = await self._define_attachments(message)
+        content = self.MENTION_REGEX.sub(helpers.make_replacer(message.guild), message.content)
         return (
-            [{"type": "text", "text": message.content}] * bool(message.content.strip()) +
+            [{"type": "text", "text": content}] * bool(content.strip()) +
             [{"type": "image_url", "image_url": {"url": attachment}} for attachment in attachments]
-            if attachments else message.content
+            if attachments else content
         )
 
     async def _define_attachments(self, message):

@@ -18,11 +18,12 @@ class OpenAIClient():
         self.max_tokens = int(config['ai']['max_tokens'])
 
     def call_client(self, messages):
+        logging.info(messages)
         completion = self.client.chat.completions.create(
             model=self.model,
             messages=self._create_input_context(messages),
             max_tokens=self.max_tokens,
-            temperature=0.85,
+            temperature=0.75,
             presence_penalty=0.1,
             frequency_penalty=0.1,
             extra_body={
