@@ -25,6 +25,7 @@ class ChatCommandCog(commands.Cog):
         Channels: <#123>
     """
     MENTION_REGEX = re.compile(r"<(@!?|@&|#)(\d+)>")
+    MAX_MESSAGE_LENGTH = 2000
 
     def __init__(self, bot):
         config = helpers.load_config()
@@ -42,8 +43,9 @@ class ChatCommandCog(commands.Cog):
 
     @nextcord.slash_command(name="chat", description="Force a reply")
     async def chat(self, interaction: nextcord.Interaction):
-        await interaction.response.defer()
-        await interaction.followup.send(await self._call_ai_backend_with_history(interaction.channel))
+        await interaction.response.defer(ephemeral=True)
+        await self._call_ai_backend_with_history(interaction.channel)
+        await interaction.delete_original_message()
 
     @commands.Cog.listener()
     async def on_message(self, message):
@@ -53,12 +55,12 @@ class ChatCommandCog(commands.Cog):
         if (self.bot.user.mentioned_in(message)
                 or any(nick.casefold() in message.content.casefold() for nick in self.nicknames)
                 or _is_reply_to_bot(message)):
-            await message.channel.send(await self._call_ai_backend_with_history(message.channel))
+            await self._call_ai_backend_with_history(message.channel)
 
         await self.bot.process_commands(message)
 
     async def _call_ai_backend_with_history(self, channel):
-        messages = list(reversed([
+        messages = [
             {
                 "name": message.author.name,
                 "content": await self._define_content(message),
@@ -69,10 +71,12 @@ class ChatCommandCog(commands.Cog):
                     limit=self.message_limit,
                     after=datetime.now(timezone.utc) - timedelta(hours=self.history_age))
             ]
-        ]))
-        message = self.openai_client.call_client(messages)
-        logging.info(message)
-        return message
+        ]
+        response = self.openai_client.call_client(messages)
+        logging.info("Response message: %s", repr(response))
+        message_chunks = [response[i:i + self.MAX_MESSAGE_LENGTH] for i in range(0, len(response), self.MAX_MESSAGE_LENGTH)]
+        for message in message_chunks:
+            await channel.send(message)
 
     async def _define_content(self, message):
         attachments = self._define_attachments(message)
