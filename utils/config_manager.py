@@ -17,7 +17,7 @@ class ConfigManager:
 
         return cls._instance
 
-    def get(self, key):
+    def get(self, key, default=None):
         if isinstance(key, str):
             env_val = os.getenv(key)
             if env_val is not None:
@@ -32,4 +32,4 @@ class ConfigManager:
                 data = data[k]
             return data
         except (KeyError, TypeError):
-            return None
+            return default
