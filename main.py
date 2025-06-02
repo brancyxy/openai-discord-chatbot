@@ -4,14 +4,15 @@ import sys
 
 from cogs.chatcommand import ChatCommandCog
 from datetime import datetime
-from dotenv import load_dotenv
 from nextcord.ext import commands
 from utils import helpers
+from utils.config_manager import ConfigManager
 
 def main():
+    cfg = ConfigManager()
     bot = commands.Bot(intents=helpers.create_intents())
     bot.add_cog(ChatCommandCog(bot))
-    bot.run(os.getenv('DISCORD_TOKEN'))
+    bot.run(cfg.get('DISCORD_TOKEN'))
 
 if __name__ == "__main__":
     os.makedirs("logs", exist_ok=True)
@@ -23,5 +24,4 @@ if __name__ == "__main__":
         ],
         level=logging.INFO
     )
-    load_dotenv()
     main()

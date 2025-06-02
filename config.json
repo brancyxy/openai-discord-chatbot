@@ -1,0 +1,13 @@
+{
+  "bot": {
+    "maximum_read_messages": 25,
+    "read_message_until_hours": 48,
+    "image_recognition_extensions": ["png", "jpeg", "jpg", "webp", "gif"],
+    "nicknames": []
+  },
+  "ai": {
+    "openai_url": "https://dreamgen.com/api/openai/v1",
+    "openai_model": "lucid-v1-medium",
+    "max_tokens": 500
+  }
+}

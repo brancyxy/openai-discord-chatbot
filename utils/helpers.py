@@ -1,4 +1,3 @@
-import configparser
 import nextcord
 
 def create_intents():
@@ -7,11 +6,6 @@ def create_intents():
         messages=True,
         message_content=True
     )
-
-def load_config():
-    config = configparser.ConfigParser()
-    config.read('config.ini')
-    return config
 
 def make_replacer(guild: nextcord.Guild):
     def replacer(match):

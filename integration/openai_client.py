@@ -1,28 +1,25 @@
 import logging
-import os
 
 from openai import OpenAI
-from utils import helpers
+from utils.config_manager import ConfigManager
 
 class OpenAIClient():
 
     def __init__(self):
         with open("system_prompt.txt", "r", encoding="utf-8") as f:
             self.system_prompt = f.read()
-        config = helpers.load_config()
+        self.config = ConfigManager()
         self.client = OpenAI(
-            api_key=os.getenv('OPENAI_API_TOKEN'),
-            base_url=config['ai']['openai_url'],
+            api_key=self.config.get('OPENAI_API_TOKEN'),
+            base_url=self.config.get("ai.openai_url")
         )
-        self.model = config['ai']['openai_model']
-        self.max_tokens = int(config['ai']['max_tokens'])
 
     def call_client(self, messages):
         logging.info("Current messages: %s", messages)
         completion = self.client.chat.completions.create(
-            model=self.model,
+            model=self.config.get("ai.openai_model"),
             messages=self._create_input_context(messages),
-            max_tokens=self.max_tokens,
+            max_tokens=self.config.get("ai.max_tokens"),
             temperature=0.85,
             presence_penalty=0.1,
             frequency_penalty=0.1,

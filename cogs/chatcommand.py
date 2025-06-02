@@ -6,6 +6,7 @@ from integration.openai_client import OpenAIClient
 from datetime import datetime, timedelta, timezone
 from nextcord.ext import commands
 from utils import helpers
+from utils.config_manager import ConfigManager
 
 def _is_reply_to_bot(message) -> bool:
     if message.reference:
@@ -28,14 +29,11 @@ class ChatCommandCog(commands.Cog):
     MAX_MESSAGE_LENGTH = 2000
 
     def __init__(self, bot):
-        config = helpers.load_config()
-        self.message_limit = int(config['bot']['message_limit'])
-        self.history_age = int(config['bot']['history_age'])
-        self.supported_extensions = [ext.strip() for ext in config['bot']['image_extensions'].split(',')]
+        self.config = ConfigManager()
         self.bot = bot
         self.bot.add_listener(self.on_ready)
         self.openai_client = OpenAIClient()
-        self.nicknames = [nick.strip() for nick in config['bot']['nicknames'].split(',') if nick.strip()]
+        self.nicknames = self.config.get("bot.nicknames")
 
     # The bot is only aware of its username when it's already logged in.
     async def on_ready(self):
@@ -68,8 +66,8 @@ class ChatCommandCog(commands.Cog):
             }
             for message in [
                 msg async for msg in channel.history(
-                    limit=self.message_limit,
-                    after=datetime.now(timezone.utc) - timedelta(hours=self.history_age))
+                    limit=self.config.get("bot.maximum_read_messages"),
+                    after=datetime.now(timezone.utc) - timedelta(hours=self.config.get("bot.read_message_until_hours")))
             ]
         ]
         response = self.openai_client.call_client(messages)
@@ -79,18 +77,20 @@ class ChatCommandCog(commands.Cog):
             await channel.send(message)
 
     async def _define_content(self, message):
-        attachments = self._define_attachments(message)
+        # attachments = self._define_attachments(message)
         content = self.MENTION_REGEX.sub(helpers.make_replacer(message.guild), message.content)
-        return (
-            [{"type": "text", "text": content}] * bool(content.strip()) +
-            [{"type": "image_url", "image_url": {"url": attachment}} for attachment in attachments]
-            if attachments else content
-        )
+        return content
+        # return (
+        #     [{"type": "text", "text": content}] * bool(content.strip()) +
+        #     [{"type": "image_url", "image_url": {"url": attachment}} for attachment in attachments]
+        #     if attachments else content
+        # )
 
     def _define_attachments(self, message):
         """
             Discord image URLs have access control.
-            I'll keep this disabled until there's a way for the agent to see them, otherwise the request will fail with HTTP 500
+            I'll keep this disabled until there's a way for the agent to see them.
+            Image recognition is also not supported on Dreamgen. If someone wants this feature, I'll fix it at some point.
 
             TODO: Most likely need to download them on the agent side, and send them in base64 like this:
             {
@@ -98,12 +98,11 @@ class ChatCommandCog(commands.Cog):
                 image_url: {
                   url: `data:${imageData.contentType};base64,${imageData.base64Data}`,
                 },
-              }
+            }
         """
-        return []
-        # file_links = [
-        #     url for url in re.findall(r'(https?://\S+)', message.content)
-        #     if any(url.lower().split('?')[0].endswith(ext) for ext in self.supported_extensions)
-        # ]
-        # attachments = [attachment.url for attachment in message.attachments]
-        # return attachments + file_links
+        file_links = [
+            url for url in re.findall(r'(https?://\S+)', message.content)
+            if any(url.lower().split('?')[0].endswith(ext) for ext in self.config.get("bot.image_recognition_extensions"))
+        ]
+        attachments = [attachment.url for attachment in message.attachments]
+        return attachments + file_links
